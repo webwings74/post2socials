@@ -34,6 +34,89 @@ BLUESKY_LOGIN_URL = "https://bsky.social/xrpc/com.atproto.server.createSession"
 BLUESKY_UPLOAD_URL = "https://bsky.social/xrpc/com.atproto.repo.uploadBlob"
 BLUESKY_DID_LOOKUP_URL = "https://bsky.social/xrpc/com.atproto.identity.resolveHandle?handle={}"
 
+def resize_image(image_path):
+    with Image.open(image_path) as img:
+        img = img.convert("RGB")
+        temp_path = f"{image_path}_resized.jpg"
+        quality = 85
+        img.save(temp_path, "JPEG", quality=quality)
+        
+        while os.path.getsize(temp_path) > MAX_IMAGE_SIZE and quality > 10:
+            quality -= 5
+            img.save(temp_path, "JPEG", quality=quality)
+        
+        return temp_path if os.path.getsize(temp_path) <= MAX_IMAGE_SIZE else None
+
+def upload_image_to_bluesky(access_token, image_path):
+    resized_path = resize_image(image_path)
+    if not resized_path:
+        print(f"Afbeelding {image_path} is te groot en kon niet verkleind worden.")
+        return None
+    
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Content-Type": mimetypes.guess_type(resized_path)[0] or "image/jpeg"
+    }
+    
+    with open(resized_path, "rb") as img_file:
+        response = requests.post(BLUESKY_UPLOAD_URL, headers=headers, data=img_file.read())
+    
+    os.remove(resized_path)  # Verwijder tijdelijk bestand
+    
+    if response.status_code == 200:
+        return response.json().get("blob")
+    else:
+        print(f"Fout bij uploaden afbeelding naar Bluesky: {response.status_code}, {response.text}")
+        return None
+
+def post_to_mastodon(message, image_paths=None):
+    media_ids = []
+    
+    if image_paths:
+        for image_path in image_paths:
+            try:
+                media = mastodon.media_post(image_path, description="Afbeelding bij post")
+                media_ids.append(media["id"])
+            except Exception as e:
+                print(f"Fout bij uploaden van afbeelding {image_path}: {e}")
+    
+    try:
+        mastodon.status_post(message, media_ids=media_ids)
+        print("Bericht succesvol geplaatst op Mastodon!")
+    except Exception as e:
+        print(f"Fout bij plaatsen op Mastodon: {e}")
+
+def post_to_bluesky(access_token, did, message, image_paths=None):
+    headers = {"Authorization": f"Bearer {access_token}", "Content-Type": "application/json"}
+    data = {
+        "repo": did,
+        "collection": "app.bsky.feed.post",
+        "record": {
+            "text": message,
+            "createdAt": datetime.now(timezone.utc).isoformat()
+        }
+    }
+    
+    facets = parse_hashtags_mentions_urls(message)
+    if facets:
+        data["record"]["facets"] = facets
+    
+    image_blobs = []
+    if image_paths:
+        for image_path in image_paths:
+            blob = upload_image_to_bluesky(access_token, image_path)
+            if blob:
+                image_blobs.append({"image": blob, "alt": "Afbeelding"})
+    
+    if image_blobs:
+        data["record"]["embed"] = {"$type": "app.bsky.embed.images", "images": image_blobs}
+    
+    response = requests.post(BLUESKY_API_URL, headers=headers, json=data)
+    if response.status_code == 200:
+        print("Bericht succesvol geplaatst op Bluesky!")
+    else:
+        print(f"Fout bij plaatsen op Bluesky: {response.status_code}, {response.text}")
+
 def login_to_bluesky():
     payload = {"identifier": config.get("bluesky_handle"), "password": config.get("bluesky_password")}
     response = requests.post(BLUESKY_LOGIN_URL, json=payload)
@@ -80,60 +163,23 @@ def parse_hashtags_mentions_urls(message):
     
     return facets if facets else None
 
-def post_to_mastodon(message, image_paths=None):
-    media_ids = []
-    
-    if image_paths:
-        for image_path in image_paths:
-            try:
-                media = mastodon.media_post(image_path, description="Afbeelding bij post")
-                media_ids.append(media["id"])
-            except Exception as e:
-                print(f"Fout bij uploaden van afbeelding {image_path}: {e}")
-    
-    try:
-        mastodon.status_post(message, media_ids=media_ids)
-        print("Bericht succesvol geplaatst op Mastodon!")
-    except Exception as e:
-        print(f"Fout bij plaatsen op Mastodon: {e}")
-
-def post_to_bluesky(access_token, did, message, image_paths=None):
-    headers = {"Authorization": f"Bearer {access_token}", "Content-Type": "application/json"}
-    data = {
-        "repo": did,
-        "collection": "app.bsky.feed.post",
-        "record": {
-            "text": message,
-            "createdAt": datetime.now(timezone.utc).isoformat()
-        }
-    }
-    
-    facets = parse_hashtags_mentions_urls(message)
-    if facets:
-        data["record"]["facets"] = facets
-    
-    response = requests.post(BLUESKY_API_URL, headers=headers, json=data)
-    if response.status_code == 200:
-        print("Bericht succesvol geplaatst op Bluesky!")
-    else:
-        print(f"Fout bij plaatsen op Bluesky: {response.status_code}, {response.text}")
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Plaats een bericht op Bluesky en/of Mastodon.")
-    parser.add_argument("-m", "--message", type=str, required=True, help="Tekstbericht dat geplaatst moet worden.")
+    parser.add_argument("-m", "--message", type=str, help="Tekstbericht dat geplaatst moet worden.")
     parser.add_argument("-i", "--images", type=str, help="Pad naar afbeeldingen, gescheiden door komma.")
     parser.add_argument("--mastodon", action="store_true", help="Plaats het bericht op Mastodon.")
     parser.add_argument("--bluesky", action="store_true", help="Plaats het bericht op Bluesky.")
     args = parser.parse_args()
     
+    message = args.message if args.message else sys.stdin.read().strip()
     image_paths = args.images.split(",") if args.images else []
     
     if args.mastodon:
-        post_to_mastodon(args.message, image_paths)
+        post_to_mastodon(message, image_paths)
     
     if args.bluesky:
         access_token, did = login_to_bluesky()
         if access_token and did:
-            post_to_bluesky(access_token, did, args.message, image_paths)
+            post_to_bluesky(access_token, did, message, image_paths)
         else:
             print("Fout bij inloggen op Bluesky.")
