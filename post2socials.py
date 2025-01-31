@@ -1,12 +1,13 @@
 import json
 import sys
 import argparse
+import re
 from mastodon import Mastodon
 import requests
 from datetime import datetime, timezone
 
 # Config-bestanden
-CONFIG_FILE = "config.json"
+CONFIG_FILE = "config-webwings.json"
 
 def load_config():
     with open(CONFIG_FILE, "r") as config_file:
@@ -32,6 +33,30 @@ def login_to_bluesky():
         return data.get("accessJwt"), data.get("did")
     return None, None
 
+def parse_hashtags_and_mentions(message):
+    facets = []
+    if not message:
+        return None
+    
+    for match in re.finditer(r"(@[\w.-]+|#[\w]+)", message):
+        match_text = match.group(0)
+        start, end = match.span()
+        
+        if match_text.startswith("#"):
+            facet_type = "app.bsky.richtext.facet#tag"
+            facet_data = {"$type": facet_type, "tag": match_text[1:]}
+        elif match_text.startswith("@"):  
+            facet_type = "app.bsky.richtext.facet#mention"
+            facet_data = {"$type": facet_type, "did": match_text[1:]}
+        else:
+            continue
+        
+        facets.append({
+            "index": {"byteStart": start, "byteEnd": end},
+            "features": [facet_data]
+        })
+    return facets if facets else None
+
 def post_to_mastodon(message, image_path=None):
     media_id = None
     if image_path:
@@ -49,8 +74,16 @@ def post_to_bluesky(access_token, did, message):
     data = {
         "repo": did,
         "collection": "app.bsky.feed.post",
-        "record": {"text": message, "createdAt": datetime.now(timezone.utc).isoformat()}
+        "record": {
+            "text": message,
+            "createdAt": datetime.now(timezone.utc).isoformat()
+        }
     }
+    
+    facets = parse_hashtags_and_mentions(message)
+    if facets:
+        data["record"]["facets"] = facets
+    
     response = requests.post(BLUESKY_API_URL, headers=headers, json=data)
     if response.status_code == 200:
         print("Bericht succesvol geplaatst op Bluesky!")
