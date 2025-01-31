@@ -75,9 +75,13 @@ def upload_image_to_bluesky(access_token, image_path):
         return None
 
 def split_message(message, max_length):
-    """Splits een bericht in delen van maximaal max_length tekens, inclusief paginanummers."""
+    """Splits een bericht in delen van maximaal max_length tekens, inclusief paginanummers (indien nodig)."""
     parts = []
     total_parts = (grapheme.length(message) // (max_length - 10)) + 1  # Reserveer ruimte voor paginanummers
+    
+    # Als het bericht niet gesplitst hoeft te worden, retourneer het originele bericht
+    if total_parts == 1:
+        return [message]
     
     for i in range(total_parts):
         start = i * (max_length - 10)  # Reserveer ruimte voor paginanummers
