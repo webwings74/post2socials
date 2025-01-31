@@ -1,5 +1,5 @@
 # post2socials
-Script om berichten, pipes en afbeeldingen naar Mastodon en/of BlueSky te posten, via de commandline/terminal.
+Script om berichten, pipes en afbeeldingen naar Mastodon en/of BlueSky te posten, via de commandline/terminal. Als een afbeelding te groot is, word deze automatisch verkleind.
 
 ## Bestanden
 * **post2socials.py**, Python script.
@@ -20,4 +20,4 @@ Script om berichten, pipes en afbeeldingen naar Mastodon en/of BlueSky te posten
 
 ## Limitaties
 * Maximaal 4 afbeeldingen, volgens BlueSky
-* Uitvoer van maximaal 300 karakters voor BlueSky, dit kan een probleem zijn met het gebruik van pipes naar BlueSky.
+* Uitvoer van maximaal 300 karakters voor BlueSky, dit kan een probleem zijn met het gebruik van pipes naar BlueSky. Echter is dit nu ondervangen door het dan op te knippen in meerdere stukken. (500 voor Mastodon, 300 voor BlueSky).
