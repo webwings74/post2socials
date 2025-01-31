@@ -1,2 +1,5 @@
 config-webwings.json
 /socials-env/
+*.jpg
+*.jpeg
+*.png
