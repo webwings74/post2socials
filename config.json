@@ -1,0 +1,6 @@
+{
+    "mastodon_access_token": "je-mastodon-access-token",    
+    "mastodon_api_base_url": "je-mastodon-base-url",        
+    "bluesky_handle": "jouw-bluesky-handle.bsky.social",
+    "bluesky_password": "jouw-bluesky-password"             
+}
