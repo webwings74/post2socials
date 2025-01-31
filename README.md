@@ -18,8 +18,6 @@ Script om berichten, pipes en afbeeldingen naar Mastodon en/of BlueSky te posten
 * Post naar beide platforms tegelijk: ```python script.py -m "Dit is een testbericht" --mastodon --bluesky```
 * Een ander programma output via een pipe plaatsen: ```echo "Automatisch bericht!" | python script.py --mastodon --bluesky```
 
-## Nog op te lossen
-Als er een URL in het bericht staat, word deze als gewone tekst in het bericht geplaatst. Dit moet eigenlijk gewoon een link blijven.
-
 ## Limitaties
 * Maximaal 4 afbeeldingen, volgens BlueSky
+* Uitvoer van maximaal 300 karakters voor BlueSky, dit kan een probleem zijn met het gebruik van pipes naar BlueSky.
