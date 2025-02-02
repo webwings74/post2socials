@@ -3,3 +3,5 @@ config-webwings.json
 *.jpg
 *.jpeg
 *.png
+*.txt
+/@eaDir/
