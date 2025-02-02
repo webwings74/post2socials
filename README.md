@@ -17,6 +17,24 @@ Script om berichten, pipes en afbeeldingen naar Mastodon en/of BlueSky te posten
 * Post naar BlueSky: ```python script.py -m "Dit is een testbericht" --bluesky```
 * Post naar beide platforms tegelijk: ```python script.py -m "Dit is een testbericht" --mastodon --bluesky```
 * Een ander programma output via een pipe plaatsen: ```echo "Automatisch bericht!" | python script.py --mastodon --bluesky```
+  
+## Python Modules
+Hieronder een ```pip list``` van de gebruikte Python modules:
+blurhash           1.1.4
+certifi            2025.1.31
+charset-normalizer 3.4.1
+decorator          5.1.1
+grapheme           0.6.0
+idna               3.10
+Mastodon.py        1.8.1
+pillow             11.1.0
+pip                25.0
+python-dateutil    2.9.0.post0
+python-magic       0.4.27
+requests           2.32.3
+setuptools         58.1.0
+six                1.17.0
+urllib3            2.3.0
 
 ## Limitaties
 * Maximaal 4 afbeeldingen, volgens BlueSky
